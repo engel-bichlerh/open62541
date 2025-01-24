@@ -13,8 +13,8 @@
 #ifdef UA_ENABLE_DISCOVERY_MULTICAST
 
 #ifndef UA_ENABLE_AMALGAMATION
-#include "mdnsd/libmdnsd/xht.h"
-#include "mdnsd/libmdnsd/sdtxt.h"
+#include "libmdnsd/xht.h"
+#include "libmdnsd/sdtxt.h"
 #endif
 
 #include "../deps/mp_printf.h"

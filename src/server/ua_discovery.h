@@ -49,7 +49,7 @@ typedef struct {
 
 #ifdef UA_ENABLE_DISCOVERY_MULTICAST
 
-#include "mdnsd/libmdnsd/mdnsd.h"
+#include "libmdnsd/mdnsd.h"
 #define UA_MAXMDNSRECVSOCKETS 8
 
 /**

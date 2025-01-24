@@ -136,7 +136,10 @@ mark_as_advanced(UA_ENABLE_PARSING)
 option(UA_ENABLE_INLINABLE_EXPORT "Export 'static inline' methods as regular API" OFF)
 mark_as_advanced(UA_ENABLE_INLINABLE_EXPORT)
 
-option(UA_ENABLE_DISCOVERY_MULTICAST "Enable Discovery Service with multicast support (LDS-ME)" OFF)
+option(UA_ENABLE_DISCOVERY_MULTICAST "Enable Discovery Service with multicast support (LDS-ME)" ON)
+
+option(UA_ENABLED_MDNSD_EXTERN "Load mdnsd as conan package" ON)
+
 mark_as_advanced(UA_ENABLE_DISCOVERY_MULTICAST)
 
 # security provider
@@ -696,23 +699,23 @@ file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/src_generated")
 # Generate the config.h
 configure_file(include/open62541/config.h.in ${PROJECT_BINARY_DIR}/src_generated/open62541/config.h)
 
-if(UA_ENABLE_DISCOVERY_MULTICAST)
+if(UA_ENABLE_DISCOVERY_MULTICAST AND NOT UA_ENABLED_MDNSD_EXTERN)
   include(GenerateExportHeader)
-    set(MDNSD_LOGLEVEL 300 CACHE STRING "Level at which logs shall be reported" FORCE)
+  set(MDNSD_LOGLEVEL 300 CACHE STRING "Level at which logs shall be reported" FORCE)
     
-    # create a "fake" empty library to generate the export header macros
-    if (APPLE)
-    	add_library(libmdnsd INTERFACE ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/mdnsd.h)
-    else()
-    	add_library(libmdnsd ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/mdnsd.h)
-    endif()
+  # create a "fake" empty library to generate the export header macros
+  if (APPLE)
+  	add_library(libmdnsd INTERFACE ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/mdnsd.h)
+  else()
+  	add_library(libmdnsd ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/mdnsd.h)
+  endif()
     
-    set_property(TARGET libmdnsd PROPERTY LINKER_LANGUAGE C)
-    set_property(TARGET libmdnsd PROPERTY DEFINE_SYMBOL "MDNSD_DYNAMIC_LINKING_EXPORT")
-    configure_file("deps/mdnsd/libmdnsd/mdnsd_config_extra.in"
+  set_property(TARGET libmdnsd PROPERTY LINKER_LANGUAGE C)
+  set_property(TARGET libmdnsd PROPERTY DEFINE_SYMBOL "MDNSD_DYNAMIC_LINKING_EXPORT")
+  configure_file("deps/mdnsd/libmdnsd/mdnsd_config_extra.in"
                    "${PROJECT_BINARY_DIR}/src_generated/mdnsd_config_extra")
-    file(READ "${PROJECT_BINARY_DIR}/src_generated/mdnsd_config_extra" MDNSD_CONFIG_EXTRA)
-    generate_export_header(libmdnsd EXPORT_FILE_NAME "${PROJECT_BINARY_DIR}/src_generated/mdnsd_config.h"
+  file(READ "${PROJECT_BINARY_DIR}/src_generated/mdnsd_config_extra" MDNSD_CONFIG_EXTRA)
+  generate_export_header(libmdnsd EXPORT_FILE_NAME "${PROJECT_BINARY_DIR}/src_generated/mdnsd_config.h"
                            BASE_NAME MDNSD DEFINE_NO_DEPRECATED CUSTOM_CONTENT_FROM_VARIABLE MDNSD_CONFIG_EXTRA)
 endif()
 
@@ -874,6 +877,9 @@ if(UA_DEBUG_DUMP_PKGS)
 endif()
 
 if(UA_ENABLE_DISCOVERY_MULTICAST)
+  list(APPEND lib_sources
+         ${PROJECT_SOURCE_DIR}/src/server/ua_discovery_mdns.c)
+  if(NOT UA_ENABLED_MDNSD_EXTERN)
     # prepend in list, otherwise it complains that winsock2.h has to be included before windows.h
     list(APPEND lib_headers
          ${PROJECT_BINARY_DIR}/src_generated/mdnsd_config.h
@@ -882,11 +888,11 @@ if(UA_ENABLE_DISCOVERY_MULTICAST)
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/sdtxt.h
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/mdnsd.h)
     list(APPEND lib_sources
-         ${PROJECT_SOURCE_DIR}/src/server/ua_discovery_mdns.c
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/1035.c
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/xht.c
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/sdtxt.c
          ${PROJECT_SOURCE_DIR}/deps/mdnsd/libmdnsd/mdnsd.c)
+  endif()
 endif()
 
 if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ)
@@ -1251,6 +1257,10 @@ function(include_directories_private)
 endfunction()
 
 include_directories_private("${PROJECT_SOURCE_DIR}/deps")
+
+if(UA_ENABLE_DISCOVERY_MULTICAST)
+  include_directories_private("${PROJECT_SOURCE_DIR}/deps/mdnsd")
+endif()
 
 if(UA_ENABLE_ENCRYPTION_MBEDTLS)
     include_directories_private(${MBEDTLS_INCLUDE_DIRS})
